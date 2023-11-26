@@ -4,13 +4,19 @@ import {
   Profile,
   VerifyCallback,
 } from "passport-google-oauth20";
-import axios from "axios";
+import { google } from "googleapis";
+import axios, { AxiosError } from "axios";
 
 const googleStrategyOptions = {
   clientID: process.env.GOOGLE_CLIENT_ID!,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
   callbackURL: process.env.GOOGLE_REDIRECT_URL,
-  scope: ["email", "profile"],
+  scope: [
+    "email",
+    "profile",
+    "https://www.googleapis.com/auth/youtubepartner",
+    "https://www.googleapis.com/auth/youtube.force-ssl",
+  ],
 };
 // action to be taken after verification is done
 const verifyFunction = async (
@@ -19,20 +25,87 @@ const verifyFunction = async (
   profile: Profile,
   done: VerifyCallback
 ) => {
-  console.log(accessToken);
-  console.log(profile);
-  const captionId = "AUieDabN3QOoUM_Ef5eINfHq5Vh2n-nT97-iTPo8acaqXmJCRTE";
-  const videoId = "RGd6JC8C_8c";
+  const captionId = "AUieDab8ioscCY8p-QDqhF3SwiqToDTUOh_AlywqULxuLNThN98";
+  const videoId = "wrHTcjSZQ1Y";
   const apiKey = process.env.GOOGLE_API_KEY;
   const captionsDownloadURL = `https://youtube.googleapis.com/youtube/v3/captions/${captionId}?key=${apiKey}`;
   const captionsListURL = `https://youtube.googleapis.com/youtube/v3/captions?part=id,snippet&videoId=${videoId}&key=${apiKey}`;
+
   try {
-    const response = await axios.get(captionsDownloadURL);
-    console.log("-------start youtube list api-----");
-    console.log(response.data);
-    console.log("-------end youtube list api-----");
+    const youtube = google.youtube({
+      version: "v3",
+      auth: accessToken, // Pass your accessToken directly for simple requests
+    });
+    // youtube.captions.list(
+    //   {
+    //     videoId: videoId,
+    //     part: ["id", "snippet"],
+    //   },
+    //   (error, response) => {
+    //     if (error) {
+    //       console.log(error);
+    //       console.error("Error fetching caption:", error.message);
+    //       return;
+    //     }
+
+    //     console.log("-------start youtube caption api-----");
+    //     console.log(response?.data);
+    //     console.log("-------end youtube caption api-----");
+    //   }
+    // );
+    youtube.captions.download(
+      {
+        id: captionId,
+        auth: accessToken,
+      },
+      (error, response) => {
+        if (error) {
+          console.log(error);
+          console.error("Error downloading caption:", error.message);
+          return;
+        }
+
+        console.log("-------start youtube caption download api-----");
+        console.log(response?.data);
+        console.log("-------end youtube caption dow api-----");
+      }
+    );
+    // const response = await axios.get(captionsDownloadURL, {
+    //   headers: {
+    //     Authorization: `Bearer ${accessToken}`,
+    //   },
+    // });
+    // console.log("-------start youtube caption download api-----");
+    // console.log(response.data);
+    // console.log("-------end youtube caption download api-----");
   } catch (error) {
-    console.error("Error fetching captions:", error);
+    // interface ErrorResponse {
+    //   error: {
+    //     code: number;
+    //     message: string;
+    //     errors: Array<{ [key: string]: string }>;
+    //   };
+    // }
+    // if (axios.isAxiosError(error)) {
+    //   const axiosError = error as AxiosError;
+
+    //   if (axiosError.response?.data) {
+    //     const errorData = axiosError.response.data as ErrorResponse;
+
+    //     if ("error" in errorData) {
+    //       const apiError = errorData.error;
+    //       console.error("API error code:", apiError.code);
+    //       console.error("API error message:", apiError.message);
+
+    //       if (apiError.code === 403) {
+    //         console.error("Permission error:", apiError.message);
+    //       }
+    //     }
+    //   }
+    // } else {
+    //   console.error("Unexpected error:", error);
+    // }
+    console.log(error);
   }
 
   done(null, {
